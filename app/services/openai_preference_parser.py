@@ -31,7 +31,7 @@ def parse_preferences(user_query: str, nsfw_ok=False):
     - liked_titles: list of plain strings for each anime mentioned as liked
     - disliked_titles: list of plain strings for each anime mentioned as disliked
     - mapped_tags: closest known tags from this list: {', '.join(known_tags)}
-    - semantic_moods: original abstract moods for semantic matching
+    - semantic_moods: original abstract moods for semantic matching (always include at least one, even if guessed from context)
 
     Rules:
     - Do NOT translate titles into other languages.
@@ -51,11 +51,16 @@ def parse_preferences(user_query: str, nsfw_ok=False):
 
     try:
         parsed = json.loads(resp.choices[0].message.content)
+
+        # --- Fallback: if GPT didn’t produce semantic_moods, use the full query ---
+        if not parsed.get("semantic_moods"):
+            parsed["semantic_moods"] = [user_query]
+
         return parsed
     except json.JSONDecodeError:
         return {
             "liked_titles": [],
             "disliked_titles": [],
             "mapped_tags": [],
-            "semantic_moods": []
+            "semantic_moods": [user_query]  # always embed something
         }

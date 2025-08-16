@@ -44,13 +44,24 @@ def _generate_recommendations(req: RecommendRequest, endpoint: str):
     if req.query:
         parsed = parse_preferences(req.query, nsfw_ok=req.nsfw_ok)
 
+        # TEMP LOGS
+        print("=== Parsed Preferences ===", flush=True)
+        print(json.dumps(parsed, indent=2), flush=True)
+
         liked_ids_from_titles = get_by_titles(parsed.get("liked_titles", []))
         disliked_ids_from_titles = get_by_titles(parsed.get("disliked_titles", []))
+
+        # TEMP LOGS
+        print(f"Liked title matches → {liked_ids_from_titles}", flush=True)
+        print(f"Disliked title matches → {disliked_ids_from_titles}", flush=True)
 
         req.liked_ids = list(set(req.liked_ids + liked_ids_from_titles))
         req.disliked_ids = list(set(req.disliked_ids + disliked_ids_from_titles))
         req.moods = list(set(req.moods + parsed.get("mapped_tags", [])))
         req.semantic_query = " ".join(parsed.get("semantic_moods", []))
+
+        # TEMP LOG
+        print(f"Final semantic query: '{req.semantic_query}'", flush=True)
 
     # Validate IDs
     invalid_ids = [i for i in req.liked_ids + req.disliked_ids if i not in all_ids]
@@ -72,10 +83,14 @@ def _generate_recommendations(req: RecommendRequest, endpoint: str):
     if req.semantic_query:
         try:
             response = client.embeddings.create(
-                model="text-embedding-3-small",  # cheap and fast, can switch to -large if needed
+                model="text-embedding-3-small",
                 input=req.semantic_query
             )
             query_embedding = np.array(response.data[0].embedding, dtype=float)
+
+            # TEMP LOG
+            print(f"Query embedding length: {len(query_embedding)}", flush=True)
+
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Embedding failed: {e}")
 
@@ -108,4 +123,8 @@ def _generate_recommendations(req: RecommendRequest, endpoint: str):
         )
 
     _recommend_cache[cache_key] = (now, response)
+
+    # TEMP LOG
+    print(f"Returned {len(response)} recommendations", flush=True)
+
     return response

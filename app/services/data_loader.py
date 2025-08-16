@@ -55,7 +55,7 @@ def get_by_ids(ids: List[int]) -> List[Dict[str, Any]]:
     load_anime_data()
     return [_index_by_id[i] for i in ids if i in _index_by_id]  # type: ignore
 
-def get_by_titles(titles, threshold=80):
+def get_by_titles(titles: List[str], threshold: int = 80) -> List[int]:
     data = load_anime_data()
     matched_ids = []
 
@@ -63,17 +63,26 @@ def get_by_titles(titles, threshold=80):
         if not title_to_match or not isinstance(title_to_match, str):
             continue
 
-        for anime in data:
-            # Get all possible titles (main + alternates)
-            all_titles = anime.get("all_titles", [])
-            if not all_titles and anime.get("title"):
-                all_titles = [anime["title"]]
+        t_norm = title_to_match.strip().lower()
 
-            # Fuzzy match against any of them
-            for alt in all_titles:
-                if fuzz.ratio(title_to_match.lower(), alt.lower()) >= threshold:
+        for anime in data:
+            all_titles = []
+            if anime.get("title"):
+                all_titles.append(anime["title"])
+            all_titles.extend(anime.get("all_titles", []))
+
+            # Normalize for comparison
+            all_titles_lower = [alt.strip().lower() for alt in all_titles if alt]
+
+            # --- Exact match first (case-insensitive) ---
+            if t_norm in all_titles_lower:
+                matched_ids.append(anime["id"])
+                continue
+
+            # --- Fuzzy fallback ---
+            for alt in all_titles_lower:
+                if fuzz.ratio(t_norm, alt) >= threshold:
                     matched_ids.append(anime["id"])
-                    break  # no need to check other titles for this anime
+                    break
 
     return list(set(matched_ids))
-
