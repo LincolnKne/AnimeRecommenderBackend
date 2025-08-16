@@ -1,6 +1,9 @@
 from fastapi import APIRouter, HTTPException
 from time import time
 import json
+import numpy as np
+from openai import OpenAI
+
 from ..models.schemas import RecommendRequest, ScoredAnime, Anime, RecommendReason
 from ..services.data_loader import load_anime_data, get_by_ids, get_by_titles
 from ..services.openai_preference_parser import parse_preferences
@@ -9,6 +12,9 @@ from ..recommender.hybrid_recommender import score_candidates
 router = APIRouter()
 _recommend_cache = {}
 CACHE_TTL = 60  # seconds
+
+# init OpenAI client
+client = OpenAI()
 
 
 @router.post("/recommend", response_model=list[ScoredAnime])
@@ -38,7 +44,6 @@ def _generate_recommendations(req: RecommendRequest, endpoint: str):
     if req.query:
         parsed = parse_preferences(req.query, nsfw_ok=req.nsfw_ok)
 
-        # Titles are now plain strings, get_by_titles handles matching against all_titles
         liked_ids_from_titles = get_by_titles(parsed.get("liked_titles", []))
         disliked_ids_from_titles = get_by_titles(parsed.get("disliked_titles", []))
 
@@ -62,10 +67,17 @@ def _generate_recommendations(req: RecommendRequest, endpoint: str):
     liked = get_by_ids(req.liked_ids)
     disliked = get_by_ids(req.disliked_ids)
 
-    # ----------- Query Embedding (via OpenAI only) ------------
+    # ----------- Query Embedding (via OpenAI embeddings) ------------
     query_embedding = None
     if req.semantic_query:
-        query_embedding = req.semantic_query
+        try:
+            response = client.embeddings.create(
+                model="text-embedding-3-small",  # cheap and fast, can switch to -large if needed
+                input=req.semantic_query
+            )
+            query_embedding = np.array(response.data[0].embedding, dtype=float)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Embedding failed: {e}")
 
     scored = score_candidates(
         all_items=candidates,
