@@ -4,10 +4,16 @@ from .api import recommend, search, anime, tags, metadata, config
 
 app = FastAPI(title="Anime Recommender API", version="0.1.0")
 
+origins = [
+    "https://animerecommend.com", 
+    "https://www.animerecommend.com", 
+    "https://animerecommenderbackend.onrender.com",  # optional, for testing
+]
+
 # Allow frontend to access API
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Change to frontend URL in production
+    allow_origins=origins,  # Change to frontend URL in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
