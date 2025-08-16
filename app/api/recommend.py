@@ -5,30 +5,21 @@ from ..models.schemas import RecommendRequest, ScoredAnime, Anime, RecommendReas
 from ..services.data_loader import load_anime_data, get_by_ids, get_by_titles
 from ..services.openai_preference_parser import parse_preferences
 from ..recommender.hybrid_recommender import score_candidates
-from sentence_transformers import SentenceTransformer
-import numpy as np
-from sentence_transformers import SentenceTransformer
-_model = None  # global cache
 
 router = APIRouter()
 _recommend_cache = {}
 CACHE_TTL = 60  # seconds
 
-def get_model():
-    global _model
-    if _model is None:
-        print("Loading SentenceTransformer model...", flush=True)
-        _model = SentenceTransformer("all-MiniLM-L6-v2")
-        print("Model loaded.", flush=True)
-    return _model
 
 @router.post("/recommend", response_model=list[ScoredAnime])
 def recommend(req: RecommendRequest):
     return _generate_recommendations(req, endpoint="recommend")
 
+
 @router.post("/recommend/more", response_model=list[ScoredAnime])
 def recommend_more(req: RecommendRequest):
     return _generate_recommendations(req, endpoint="recommend_more")
+
 
 def _generate_recommendations(req: RecommendRequest, endpoint: str):
     cache_key = f"{endpoint}:{json.dumps(req.dict(), sort_keys=True)}"
@@ -71,11 +62,10 @@ def _generate_recommendations(req: RecommendRequest, endpoint: str):
     liked = get_by_ids(req.liked_ids)
     disliked = get_by_ids(req.disliked_ids)
 
-    # ----------- Blend semantic moods into embedding similarity ------------
+    # ----------- Query Embedding (via OpenAI only) ------------
     query_embedding = None
     if req.semantic_query:
-        model = get_model()
-        query_embedding = model.encode(req.semantic_query)
+        query_embedding = req.semantic_query
 
     scored = score_candidates(
         all_items=candidates,
