@@ -5,7 +5,7 @@ import numpy as np
 from openai import OpenAI
 
 from ..models.schemas import RecommendRequest, ScoredAnime, Anime, RecommendReason
-from ..services.data_loader import load_anime_data, get_by_ids, get_by_titles
+from ..services.db_loader import load_anime_data, get_by_ids, get_by_titles
 from ..services.openai_preference_parser import parse_preferences
 from ..recommender.hybrid_recommender import score_candidates
 
@@ -13,25 +13,20 @@ router = APIRouter()
 _recommend_cache = {}
 CACHE_TTL = 60  # seconds
 
-# init OpenAI client
 client = OpenAI()
-
 
 @router.post("/recommend", response_model=list[ScoredAnime])
 def recommend(req: RecommendRequest):
     return _generate_recommendations(req, endpoint="recommend")
 
-
 @router.post("/recommend/more", response_model=list[ScoredAnime])
 def recommend_more(req: RecommendRequest):
     return _generate_recommendations(req, endpoint="recommend_more")
-
 
 def _generate_recommendations(req: RecommendRequest, endpoint: str):
     cache_key = f"{endpoint}:{json.dumps(req.dict(), sort_keys=True)}"
     now = time()
 
-    # Cache hit
     if cache_key in _recommend_cache:
         ts, cached_result = _recommend_cache[cache_key]
         if now - ts < CACHE_TTL:

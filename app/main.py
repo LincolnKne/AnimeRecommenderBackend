@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .api import recommend, search, anime, tags, metadata, config
+from dotenv import load_dotenv
+load_dotenv()
 
 app = FastAPI(title="Anime Recommender API", version="0.1.0")
 

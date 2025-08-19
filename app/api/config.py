@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Query
 from pathlib import Path
-from ..services.data_loader import load_anime_data
+from ..services.db_loader import load_anime_data
 
 router = APIRouter()
 
